@@ -69,43 +69,49 @@ sections.MainSection1:Slider({
     end
 }, "SpeedSlider")
 
--- 🧠 STRICT egg detection
+-- 🧠 Hybrid detection
 local function getClosestEgg(root)
     local closest = nil
     local shortestDist = math.huge
 
+    local function consider(pos, obj)
+        local dist = (root.Position - pos).Magnitude
+        if dist < shortestDist then
+            shortestDist = dist
+            closest = obj
+        end
+    end
+
     local function checkRootPart(rp)
         if not rp or not rp:IsA("BasePart") then return end
 
-        -- Check if RootPart has a child containing "Egg"
         for _, child in ipairs(rp:GetChildren()) do
             if string.find(child.Name, "Egg") then
-                local dist = (root.Position - rp.Position).Magnitude
-                if dist < shortestDist then
-                    shortestDist = dist
-                    closest = rp
-                end
+                consider(rp.Position, rp)
             end
         end
     end
 
-    -- 1. workspace.Eggs ONLY
+    -- 1. workspace.Eggs (priority)
     local eggsFolder = workspace:FindFirstChild("Eggs")
     if eggsFolder then
         for _, obj in ipairs(eggsFolder:GetDescendants()) do
             if obj:IsA("BasePart") then
-                local dist = (root.Position - obj.Position).Magnitude
-                if dist < shortestDist then
-                    shortestDist = dist
-                    closest = obj
-                end
+                consider(obj.Position, obj)
             elseif obj:FindFirstChild("RootPart") then
                 checkRootPart(obj.RootPart)
             end
         end
     end
 
-    -- 2. fallback: ONLY RootPart systems (no name scanning)
+    -- 2. OLD METHOD (_PrimaryPart)
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj.Name == "_PrimaryPart" and obj:IsA("BasePart") then
+            consider(obj.Position, obj)
+        end
+    end
+
+    -- 3. RootPart + Egg child method
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:FindFirstChild("RootPart") then
             checkRootPart(obj.RootPart)
