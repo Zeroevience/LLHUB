@@ -37,8 +37,6 @@ local sections = {
 -- Settings
 local RUNNING = false
 local SPEED = 45
-
-local TARGET_NAME = "_PrimaryPart"
 local Y_OFFSET = 5
 
 -- Toggle
@@ -60,7 +58,7 @@ sections.MainSection1:Slider({
     Name = "Speed",
     Default = 45,
     Minimum = 1,
-    Maximum = 120,
+    Maximum = 1000,
     DisplayMethod = "Value",
     Precision = 0,
     Callback = function(value)
@@ -71,45 +69,87 @@ sections.MainSection1:Slider({
     end
 }, "SpeedSlider")
 
--- Auto Egg Loop
+-- 🧠 STRICT egg detection
+local function getClosestEgg(root)
+    local closest = nil
+    local shortestDist = math.huge
+
+    local function checkRootPart(rp)
+        if not rp or not rp:IsA("BasePart") then return end
+
+        -- Check if RootPart has a child containing "Egg"
+        for _, child in ipairs(rp:GetChildren()) do
+            if string.find(child.Name, "Egg") then
+                local dist = (root.Position - rp.Position).Magnitude
+                if dist < shortestDist then
+                    shortestDist = dist
+                    closest = rp
+                end
+            end
+        end
+    end
+
+    -- 1. workspace.Eggs ONLY
+    local eggsFolder = workspace:FindFirstChild("Eggs")
+    if eggsFolder then
+        for _, obj in ipairs(eggsFolder:GetDescendants()) do
+            if obj:IsA("BasePart") then
+                local dist = (root.Position - obj.Position).Magnitude
+                if dist < shortestDist then
+                    shortestDist = dist
+                    closest = obj
+                end
+            elseif obj:FindFirstChild("RootPart") then
+                checkRootPart(obj.RootPart)
+            end
+        end
+    end
+
+    -- 2. fallback: ONLY RootPart systems (no name scanning)
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:FindFirstChild("RootPart") then
+            checkRootPart(obj.RootPart)
+        end
+    end
+
+    return closest
+end
+
+-- Loop
 task.spawn(function()
     while true do
         if RUNNING then
             local char = player.Character
             local root = char and char:FindFirstChild("HumanoidRootPart")
 
-            local target = nil
-            for _, obj in ipairs(workspace:GetDescendants()) do
-                if obj.Name == TARGET_NAME and obj:IsA("BasePart") then
-                    target = obj
-                    break
+            if root then
+                local target = getClosestEgg(root)
+
+                if target then
+                    local targetPos = target.CFrame * CFrame.new(0, Y_OFFSET, 0)
+                    local dist = (root.Position - targetPos.Position).Magnitude
+
+                    local tween = TweenService:Create(
+                        root,
+                        TweenInfo.new(dist / SPEED, Enum.EasingStyle.Linear),
+                        {CFrame = targetPos}
+                    )
+
+                    tween:Play()
+
+                    local arrived = false
+                    local conn = tween.Completed:Connect(function()
+                        arrived = true
+                    end)
+
+                    while not arrived and RUNNING do
+                        task.wait(0.1)
+                    end
+
+                    conn:Disconnect()
+                else
+                    task.wait(1)
                 end
-            end
-
-            if target and root then
-                local targetPos = target.CFrame * CFrame.new(0, Y_OFFSET, 0)
-                local dist = (root.Position - targetPos.Position).Magnitude
-
-                local tween = TweenService:Create(
-                    root,
-                    TweenInfo.new(dist / SPEED, Enum.EasingStyle.Linear),
-                    {CFrame = targetPos}
-                )
-
-                tween:Play()
-
-                local arrived = false
-                local conn = tween.Completed:Connect(function()
-                    arrived = true
-                end)
-
-                while not arrived and RUNNING do
-                    task.wait(0.1)
-                end
-
-                conn:Disconnect()
-            else
-                task.wait(1)
             end
         end
 
