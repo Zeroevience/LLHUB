@@ -14,35 +14,49 @@ local Window = MacLib:Window({
     Size = UDim2.fromOffset(650, 450),
 })
 
--- NOTIFICATION (your message)
+-- Notify
 Window:Notify({
     Title = "Salut leandre",
     Description = "Wsh leandre merci dutiliser mon script",
     Lifetime = 5
 })
 
--- TabGroup (THIS WAS MISSING)
+-- TabGroup
 local TabGroup = Window:TabGroup()
 
--- Tab
 local Tab = TabGroup:Tab({
     Name = "Main",
     Image = "rbxassetid://532121536"
 })
 
 -- Section
-local Section = Tab:Section({
-    Side = "Left"
-})
+local sections = {
+    MainSection1 = Tab:Section({ Side = "Left" })
+}
 
 -- Settings
 local RUNNING = false
-local TARGET_NAME = "_PrimaryPart"
 local SPEED = 45
+
+local TARGET_NAME = "_PrimaryPart"
 local Y_OFFSET = 5
 
--- Slider (Speed)
-Section:Slider({
+-- Toggle
+sections.MainSection1:Toggle({
+    Name = "Auto Egg",
+    Default = false,
+    Callback = function(value)
+        RUNNING = value
+
+        Window:Notify({
+            Title = "Auto Egg",
+            Description = (value and "Enabled" or "Disabled")
+        })
+    end,
+}, "AutoEggToggle")
+
+-- Speed Slider
+sections.MainSection1:Slider({
     Name = "Speed",
     Default = 45,
     Minimum = 1,
@@ -55,15 +69,7 @@ Section:Slider({
     onInputComplete = function(value)
         SPEED = value
     end
-})
-
--- Toggle (using button since your version shows Button API)
-Section:Button({
-    Name = "Toggle Auto Egg",
-    Callback = function()
-        RUNNING = not RUNNING
-    end
-})
+}, "SpeedSlider")
 
 -- Auto Egg Loop
 task.spawn(function()
@@ -99,10 +105,6 @@ task.spawn(function()
 
                 while not arrived and RUNNING do
                     task.wait(0.1)
-                end
-
-                if not RUNNING then
-                    tween:Cancel()
                 end
 
                 conn:Disconnect()
